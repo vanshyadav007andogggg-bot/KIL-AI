@@ -1,9 +1,11 @@
 import os
-import requests
 import uuid
+import requests
 
+from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 app = FastAPI(title="KIL AI")
@@ -11,22 +13,21 @@ app = FastAPI(title="KIL AI")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-
 MODEL = "openai/gpt-oss-120b"
-
-sessions = {}
 
 SYSTEM_PROMPT = """
 You are KIL AI, an intelligent and helpful AI assistant.
 You can communicate in Hindi and English.
-Always give clear, useful and accurate answers.
-Be polite, friendly and concise.
+Give clear, accurate and useful answers.
 Your name is KIL AI.
 """
 
+sessions = {}
+
+
 class ChatRequest(BaseModel):
     message: str
-    session_id: str = None
+    session_id: Optional[str] = None
 
 
 @app.get("/")
@@ -44,7 +45,7 @@ def health():
 
 
 @app.post("/api/chat")
-def chat(request: ChatRequest):
+def chat(data: ChatRequest):
 
     if not GROQ_API_KEY:
         raise HTTPException(
@@ -52,7 +53,7 @@ def chat(request: ChatRequest):
             detail="GROQ_API_KEY Render par set nahi hai."
         )
 
-    user_message = request.message.strip()
+    user_message = data.message.strip()
 
     if not user_message:
         raise HTTPException(
@@ -60,24 +61,24 @@ def chat(request: ChatRequest):
             detail="Message khali hai."
         )
 
-    session_id = request.session_id or str(uuid.uuid4())
+    session_id = data.session_id or str(uuid.uuid4())
 
     if session_id not in sessions:
         sessions[session_id] = []
 
     history = sessions[session_id]
 
-    history.append({
-        "role": "user",
-        "content": user_message
-    })
-
     messages = [
         {
             "role": "system",
             "content": SYSTEM_PROMPT
         }
-    ] + history[-12:]
+    ] + history[-10:] + [
+        {
+            "role": "user",
+            "content": user_message
+        }
+    ]
 
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -109,8 +110,8 @@ def chat(request: ChatRequest):
                 error_message = response.text[:500]
 
             raise HTTPException(
-                status_code=response.status_code,
-                detail=error_message
+                status_code=502,
+                detail=f"Groq API Error: {error_message}"
             )
 
         result = response.json()
@@ -118,11 +119,16 @@ def chat(request: ChatRequest):
         reply = result["choices"][0]["message"]["content"]
 
         history.append({
+            "role": "user",
+            "content": user_message
+        })
+
+        history.append({
             "role": "assistant",
             "content": reply
         })
 
-        sessions[session_id] = history[-12:]
+        sessions[session_id] = history[-10:]
 
         return {
             "reply": reply,
@@ -133,16 +139,20 @@ def chat(request: ChatRequest):
     except requests.exceptions.Timeout:
         raise HTTPException(
             status_code=504,
-            detail="Groq server ne samay par jawab nahi diya."
+            detail="Groq server timeout."
         )
 
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as error:
         raise HTTPException(
             status_code=502,
-            detail="Groq AI connection failed."
+            detail=f"Connection error: {str(error)}"
         )
 
+    except HTTPException:
+        raise
 
-@app.get("/favicon.ico")
-def favicon():
-    raise HTTPException(status_code=404, detail="Not found")
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Server error: {str(error)}"
+        )
