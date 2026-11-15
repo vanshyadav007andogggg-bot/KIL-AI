@@ -1,282 +1,232 @@
-
 <!DOCTYPE html>
 <html lang="hi">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#101827">
-<title>KIL AI - Detective Assistant</title>
+<title>KIL AI</title>
 
 <style>
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
     margin: 0;
-    background: #0b1220;
+    padding: 15px;
+    background: #101827;
     color: white;
     font-family: Arial, sans-serif;
 }
 
-header {
-    background: #142238;
-    padding: 20px;
+h1 {
     text-align: center;
-    border-bottom: 1px solid #34445c;
-}
-
-header h1 {
-    margin: 0;
-    font-size: 28px;
-}
-
-header p {
-    color: #a9bdd8;
+    color: #00e5ff;
 }
 
 #status {
-    color: #54e49b;
-    font-size: 13px;
+    text-align: center;
+    color: #9ca3af;
+    margin: 12px;
 }
 
 #chat {
-    padding: 15px;
-    height: calc(100vh - 220px);
+    height: 65vh;
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    background: #1e293b;
+    border-radius: 12px;
+    padding: 12px;
 }
 
 .message {
-    padding: 14px;
-    border-radius: 14px;
-    max-width: 88%;
-    line-height: 1.5;
-    white-space: pre-wrap;
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 10px;
     overflow-wrap: anywhere;
+    white-space: pre-wrap;
 }
 
-.user {
-    background: #245b91;
-    align-self: flex-end;
-}
+.user { background: #075985; }
+.bot { background: #334155; }
 
-.bot {
-    background: #1b2b42;
-    border: 1px solid #354b68;
-    align-self: flex-start;
-}
-
-form {
+.controls {
     display: flex;
     gap: 7px;
-    padding: 12px;
-    background: #111c2d;
-    position: sticky;
-    bottom: 0;
+    margin-top: 12px;
 }
 
 input {
     flex: 1;
     min-width: 0;
-    padding: 14px;
-    border-radius: 12px;
-    border: 1px solid #52647e;
-    background: #202f44;
-    color: white;
+    padding: 13px;
+    border-radius: 8px;
+    border: none;
     font-size: 16px;
 }
 
 button {
-    border: none;
-    border-radius: 12px;
     padding: 12px;
-    background: #2478ce;
-    color: white;
+    border: none;
+    border-radius: 8px;
+    background: #00bcd4;
+    color: #001018;
     font-weight: bold;
-}
-
-#mic {
-    background: #45546a;
+    font-size: 15px;
 }
 </style>
 </head>
 
 <body>
 
-<header>
-    <h1>🎭 KIL AI</h1>
-    <p>Advanced Detective Intelligence</p>
-    <div id="status">Connecting...</div>
-</header>
+<h1>🤖 KIL AI</h1>
+<div id="status">सर्वर से जुड़ रहा है...</div>
 
 <div id="chat">
     <div class="message bot">
-        🎭 नमस्ते! मैं KIL AI हूँ।
-        मुझसे कुछ भी पूछिए।
-        मैं आपकी सहायता के लिए तैयार हूँ।
+        नमस्ते! मैं KIL AI हूँ। आप मुझसे बात कर सकते हैं।
     </div>
 </div>
 
-<form id="form">
-    <input
-        id="message"
-        placeholder="KIL से कुछ पूछें..."
-        autocomplete="off"
-        required
-    >
-
-    <button type="button" id="mic">🎙️</button>
-    <button type="submit" id="send">Send</button>
-</form>
+<div class="controls">
+    <input id="message" placeholder="अपना संदेश लिखें...">
+    <button id="send" onclick="sendMessage()">भेजें</button>
+    <button onclick="startVoice()">🎤</button>
+</div>
 
 <script>
 const chat = document.getElementById("chat");
 const input = document.getElementById("message");
-const send = document.getElementById("send");
-const status = document.getElementById("status");
+const statusText = document.getElementById("status");
+const sendButton = document.getElementById("send");
 
 let sessionId = localStorage.getItem("kil_session");
+
+if (!sessionId) {
+    sessionId = "kil-" + Date.now();
+    localStorage.setItem("kil_session", sessionId);
+}
 
 function addMessage(text, type) {
     const div = document.createElement("div");
     div.className = "message " + type;
-    div.textContent = text;
+    div.textContent = String(text);
     chat.appendChild(div);
     chat.scrollTop = chat.scrollHeight;
-    return div;
 }
 
-// Server connection check
 async function checkServer() {
     try {
         const response = await fetch("/api/health");
-        const data = await response.json();
-
-        status.textContent =
-            "● KIL ONLINE - " + data.model;
+        if (!response.ok) throw new Error("Server error");
+        statusText.textContent = "🟢 KIL AI ऑनलाइन है";
     } catch (error) {
-        status.textContent = "● SERVER CHECK PENDING";
+        statusText.textContent = "🔴 सर्वर से कनेक्शन नहीं हुआ";
     }
 }
 
-checkServer();
-
-// Send message to KIL backend
-document.getElementById("form")
-.addEventListener("submit", async function(event) {
-
-    event.preventDefault();
-
+async function sendMessage() {
     const text = input.value.trim();
 
     if (!text) return;
 
     addMessage(text, "user");
-
     input.value = "";
-    send.disabled = true;
-
-    const loading = addMessage(
-        "🎭 KIL विश्लेषण कर रहा है...",
-        "bot"
-    );
+    sendButton.disabled = true;
+    statusText.textContent = "KIL जवाब तैयार कर रहा है...";
 
     try {
         const response = await fetch("/api/chat", {
             method: "POST",
-
             headers: {
                 "Content-Type": "application/json"
             },
-
             body: JSON.stringify({
                 message: text,
                 session_id: sessionId
             })
         });
 
-        const data = await response.json();
+        const raw = await response.text();
+
+        let data;
+
+        try {
+            data = JSON.parse(raw);
+        } catch {
+            throw new Error("सर्वर ने सही JSON जवाब नहीं दिया: " + raw);
+        }
 
         if (!response.ok) {
+            const detail = data.detail || data.error || raw;
             throw new Error(
-                data.detail || "Server error"
+                typeof detail === "string"
+                    ? detail
+                    : JSON.stringify(detail)
             );
         }
 
-        sessionId = data.session_id;
+        let reply = data.reply;
 
-        localStorage.setItem(
-            "kil_session",
-            sessionId
-        );
+        if (reply === undefined || reply === null) {
+            reply = data.response || data.answer || data.message;
+        }
 
-        loading.textContent = "🎭 " + data.answer;
+        if (reply === undefined || reply === null) {
+            throw new Error("सर्वर के जवाब में reply नहीं मिला: " +
+                JSON.stringify(data));
+        }
+
+        addMessage(reply, "bot");
+
+        if (data.session_id) {
+            sessionId = data.session_id;
+            localStorage.setItem("kil_session", sessionId);
+        }
+
+        if ("speechSynthesis" in window) {
+            const speech = new SpeechSynthesisUtterance(String(reply));
+            speech.lang = "hi-IN";
+            speechSynthesis.speak(speech);
+        }
+
+        statusText.textContent = "🟢 KIL AI ऑनलाइन है";
 
     } catch (error) {
-
-        loading.textContent =
-            "KIL CONNECTION ERROR: " + error.message;
-
+        addMessage("त्रुटि: " + error.message, "bot");
+        statusText.textContent = "🔴 जवाब मिलने में समस्या";
     }
 
-    send.disabled = false;
-    input.focus();
+    sendButton.disabled = false;
+}
+
+input.addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+        sendMessage();
+    }
 });
 
-// Voice input
-const SpeechRecognition =
-    window.SpeechRecognition ||
-    window.webkitSpeechRecognition;
+function startVoice() {
+    const Recognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
 
-document.getElementById("mic")
-.addEventListener("click", function() {
-
-    if (!SpeechRecognition) {
-        alert("Voice input इस browser में उपलब्ध नहीं है।");
+    if (!Recognition) {
+        alert("इस ब्राउज़र में Voice Recognition उपलब्ध नहीं है।");
         return;
     }
 
-    const recognition = new SpeechRecognition();
-
+    const recognition = new Recognition();
     recognition.lang = "hi-IN";
-    recognition.interimResults = false;
+    recognition.start();
 
     recognition.onresult = function(event) {
-        input.value =
-            event.results[0][0].transcript;
+        input.value = event.results[0][0].transcript;
+        sendMessage();
     };
 
     recognition.onerror = function() {
-        alert("Microphone permission जाँचें।");
+        alert("आवाज़ पहचानने में समस्या हुई।");
     };
+}
 
-    recognition.start();
-});
-
-// Speak KIL replies by tapping them
-chat.addEventListener("click", function(event) {
-
-    if (event.target.classList.contains("bot")) {
-
-        if (!("speechSynthesis" in window)) {
-            alert("Voice playback उपलब्ध नहीं है।");
-            return;
-        }
-
-        const speech = new SpeechSynthesisUtterance(
-            event.target.textContent
-        );
-
-        speech.lang = "hi-IN";
-
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(speech);
-    }
-});
-
+checkServer();
 </script>
 
 </body>
