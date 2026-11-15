@@ -1,6 +1,4 @@
-
 fastapi
 uvicorn
-groq
-wikipedia
-python-dotenv
+requests
+wikipedia-api
