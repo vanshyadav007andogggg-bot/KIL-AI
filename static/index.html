@@ -1,302 +1,1162 @@
-<!DOCTYPE html><html lang="hi">
+<!DOCTYPE html>
+<html lang="hi">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KIL AI Assistant</title><style>
-* {
-    box-sizing: border-box;
+
+<title>KIL AI - Dark Intelligence</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
 }
 
-body {
-    margin: 0;
-    padding: 15px;
-    background: #101827;
-    color: white;
-    font-family: Arial, sans-serif;
+body{
+    background:#07090f;
+    color:#e8edf5;
+    font-family:Arial,sans-serif;
 }
 
-h1 {
-    text-align: center;
-    color: #00e5ff;
-    margin-bottom: 5px;
+header{
+    background:#101522;
+    padding:18px;
+    border-bottom:1px solid #263044;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
 }
 
-#status {
-    text-align: center;
-    color: #9ca3af;
-    margin: 12px;
+.logo{
+    color:#00e5ff;
+    font-size:25px;
+    font-weight:bold;
+    letter-spacing:3px;
 }
 
-#chat {
-    height: 65vh;
-    overflow-y: auto;
-    background: #1e293b;
-    border-radius: 14px;
-    padding: 12px;
+.status{
+    color:#00ff88;
+    font-size:12px;
 }
 
-.message {
-    padding: 13px;
-    margin: 10px 0;
-    border-radius: 12px;
-    overflow-wrap: anywhere;
-    white-space: pre-wrap;
-    line-height: 1.5;
+.container{
+    display:flex;
+    min-height:calc(100vh - 65px);
 }
 
-.user {
-    background: #075985;
-    text-align: right;
+.sidebar{
+    width:250px;
+    background:#0d121e;
+    padding:15px;
+    border-right:1px solid #263044;
 }
 
-.bot {
-    background: #334155;
-    text-align: left;
+.sidebar button{
+    width:100%;
+    padding:13px;
+    margin:5px 0;
+    background:#151d2d;
+    color:white;
+    border:1px solid #263044;
+    border-radius:8px;
+    text-align:left;
+    cursor:pointer;
 }
 
-.controls {
-    display: flex;
-    gap: 7px;
-    margin-top: 12px;
+.sidebar button:hover,
+.sidebar button.active{
+    background:#073c4c;
+    border-color:#00e5ff;
 }
 
-input {
-    flex: 1;
-    min-width: 0;
-    padding: 13px;
-    border-radius: 9px;
-    border: none;
-    font-size: 16px;
+.main{
+    flex:1;
+    padding:20px;
+    min-width:0;
 }
 
-button {
-    padding: 12px;
-    border: none;
-    border-radius: 9px;
-    background: #00bcd4;
-    color: #001018;
-    font-weight: bold;
-    font-size: 15px;
+.title{
+    font-size:24px;
+    margin-bottom:10px;
 }
 
-button:disabled {
-    opacity: 0.5;
+.subtitle{
+    color:#8c9bb3;
+    margin-bottom:20px;
 }
 
-#stopButton {
-    background: #ef4444;
-    color: white;
+.dashboard{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:12px;
+    margin-bottom:20px;
 }
-</style></head><body><h1>🤖 KIL AI</h1>
-<div id="status">सर्वर से जुड़ रहा है...</div><div id="chat">
-    <div class="message bot">
-        नमस्ते! मैं KIL AI हूँ। आप मुझसे चैट और आवाज़ के जरिए बात कर सकते हैं।
-    </div>
-</div><div class="controls">
-    <input id="message" type="text"
-           placeholder="अपना संदेश लिखें..."><button id="send" onclick="sendMessage()">भेजें</button>
 
-</div><div class="controls">
-    <button onclick="startVoice()">🎤 बोलें</button>
-    <button id="stopButton" onclick="stopSpeaking()">⏹️ आवाज़ रोकें</button>
-</div><script>
+.card{
+    background:#111a2a;
+    border:1px solid #263044;
+    border-radius:10px;
+    padding:16px;
+    cursor:pointer;
+}
 
-const chat = document.getElementById("chat");
-const input = document.getElementById("message");
-const statusText = document.getElementById("status");
-const sendButton = document.getElementById("send");
+.card:hover{
+    border-color:#00e5ff;
+    transform:translateY(-2px);
+}
+
+.card h3{
+    color:#00e5ff;
+    font-size:15px;
+    margin-bottom:8px;
+}
+
+.card p{
+    color:#aab6c8;
+    font-size:12px;
+}
+
+.chatbox{
+    background:#0d1422;
+    border:1px solid #263044;
+    border-radius:12px;
+    height:390px;
+    overflow-y:auto;
+    padding:15px;
+    margin-bottom:12px;
+}
+
+.message{
+    padding:12px;
+    margin:10px 0;
+    border-radius:10px;
+    line-height:1.6;
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+}
+
+.user{
+    background:#12344a;
+    margin-left:10%;
+}
+
+.bot{
+    background:#192235;
+    border-left:3px solid #00e5ff;
+    margin-right:5%;
+}
+
+.input-area{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+}
+
+textarea{
+    flex:1;
+    min-width:150px;
+    height:55px;
+    resize:vertical;
+    background:#111a2a;
+    color:white;
+    border:1px solid #34425a;
+    border-radius:8px;
+    padding:12px;
+    font-size:15px;
+}
+
+button{
+    cursor:pointer;
+}
+
+.action{
+    background:#00bcd4;
+    color:#00131a;
+    border:0;
+    border-radius:8px;
+    padding:12px 16px;
+    font-weight:bold;
+}
+
+.secondary{
+    background:#202c40;
+    color:white;
+    border:1px solid #34425a;
+    border-radius:8px;
+    padding:10px;
+}
+
+.panel{
+    background:#101827;
+    border:1px solid #263044;
+    border-radius:10px;
+    padding:15px;
+    margin-bottom:15px;
+}
+
+.panel h3{
+    color:#00e5ff;
+    margin-bottom:10px;
+}
+
+.file-input{
+    width:100%;
+    padding:12px;
+    background:#172235;
+    color:white;
+    border-radius:8px;
+}
+
+.hidden{
+    display:none;
+}
+
+.small{
+    font-size:12px;
+    color:#8998ad;
+    margin-top:10px;
+}
+
+footer{
+    text-align:center;
+    color:#68778c;
+    padding:15px;
+    font-size:12px;
+}
+
+@media(max-width:700px){
+
+    .container{
+        flex-direction:column;
+    }
+
+    .sidebar{
+        width:100%;
+        display:grid;
+        grid-template-columns:repeat(2,1fr);
+        border-right:0;
+        border-bottom:1px solid #263044;
+    }
+
+    .sidebar button{
+        font-size:12px;
+        padding:11px 6px;
+    }
+
+    .main{
+        padding:12px;
+    }
+
+    .chatbox{
+        height:350px;
+    }
+
+    header{
+        padding:14px;
+    }
+
+    .logo{
+        font-size:20px;
+    }
+
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+
+<div class="logo">KIL-AI</div>
+
+<div class="status" id="status">
+● SYSTEM ONLINE
+</div>
+
+</header>
+
+<div class="container">
+
+<!-- SIDEBAR -->
+
+<aside class="sidebar">
+
+<button class="active" onclick="setMode('normal',this)">
+💬 AI Chat
+</button>
+
+<button onclick="setMode('detective',this)">
+🕵️ Detective Mode
+</button>
+
+<button onclick="setMode('psychologist',this)">
+🧠 Dark Intelligence
+</button>
+
+<button onclick="setMode('pattern',this)">
+🔍 Pattern Analysis
+</button>
+
+<button onclick="setMode('prediction',this)">
+🎯 Question Prediction
+</button>
+
+<button onclick="setMode('subject',this)">
+📚 Subject Analysis
+</button>
+
+<button onclick="setMode('modelpaper',this)">
+📝 Model Paper
+</button>
+
+<button onclick="setMode('evaluator',this)">
+✍️ Answer Evaluator
+</button>
+
+<button onclick="setMode('history',this)">
+📊 Historical Analysis
+</button>
+
+<button onclick="stopSpeaking()">
+🔇 Stop Voice
+</button>
+
+<button onclick="clearChat()">
+🗑️ Clear Chat
+</button>
+
+</aside>
+
+
+<!-- MAIN CONTENT -->
+
+<main class="main">
+
+<h1 class="title">Dark Intelligence System</h1>
+
+<p class="subtitle">
+KIL Academic Detective | CG Board Class 10
+</p>
+
+
+<!-- DASHBOARD -->
+
+<div class="dashboard">
+
+<div class="card" onclick="quickMode('detective')">
+<h3>🕵️ Detective</h3>
+<p>Deep Question Investigation</p>
+</div>
+
+<div class="card" onclick="quickMode('pattern')">
+<h3>🔍 Pattern Engine</h3>
+<p>Question Pattern Detection</p>
+</div>
+
+<div class="card" onclick="quickMode('prediction')">
+<h3>🎯 Prediction</h3>
+<p>Probable Exam Questions</p>
+</div>
+
+<div class="card" onclick="quickMode('modelpaper')">
+<h3>📝 Model Paper</h3>
+<p>Generate Practice Paper</p>
+</div>
+
+<div class="card" onclick="quickMode('subject')">
+<h3>📚 Subject AI</h3>
+<p>Subject-wise Analysis</p>
+</div>
+
+<div class="card" onclick="quickMode('evaluator')">
+<h3>✍️ Evaluator</h3>
+<p>Check Your Answers</p>
+</div>
+
+</div>
+
+
+<!-- PDF SCANNER -->
+
+<div class="panel">
+
+<h3>📄 Question Paper Scanner</h3>
+
+<input
+type="file"
+id="pdfFile"
+class="file-input"
+accept=".pdf,.txt"
+onchange="readDocument(event)"
+>
+
+<p class="small">
+अपना CG Board Class 10 का पुराना प्रश्नपत्र
+PDF या TXT फॉर्मेट में अपलोड करें।
+</p>
+
+<div id="fileStatus" class="small"></div>
+
+</div>
+
+
+<!-- CHAT -->
+
+<div class="panel">
+
+<h3 id="modeTitle">💬 KIL AI Chat</h3>
+
+<div class="chatbox" id="chatbox">
+
+<div class="message bot">
+नमस्ते! मैं KIL हूँ।
+
+तुम्हारा Academic Detective AI Assistant.
+
+मैं CG Board Class 10 के प्रश्नपत्रों का
+विश्लेषण, पैटर्न पहचानने, संभावित प्रश्न बनाने
+और मॉडल पेपर तैयार करने में मदद कर सकता हूँ।
+
+अपना प्रश्न पूछो या कोई प्रश्नपत्र अपलोड करो।
+</div>
+
+</div>
+
+
+<div class="input-area">
+
+<textarea
+id="userInput"
+placeholder="KIL से कुछ भी पूछें..."
+></textarea>
+
+<button class="action" onclick="sendMessage()">
+SEND
+</button>
+
+<button class="secondary" onclick="startVoice()">
+🎙️
+</button>
+
+<button class="secondary" onclick="stopSpeaking()">
+🔇
+</button>
+
+</div>
+
+<p class="small" id="voiceStatus">
+Voice Assistant Ready
+</p>
+
+</div>
+
+</main>
+
+</div>
+
+<footer>
+KIL AI | Dark Detective Academic Intelligence System
+</footer>
+
+
+<script>
+
+// ==============================
+// CONFIGURATION
+// ==============================
+
+const API_URL = "/api/chat";
+
+let currentMode = "normal";
+
+let uploadedDocument = "";
+
+let isBusy = false;
+
+let recognition = null;
+
+let currentUtterance = null;
+
+const chatbox = document.getElementById("chatbox");
+
+
+// ==============================
+// AI PERSONALITY
+// ==============================
+
+const personalities = {
+
+normal: `
+You are KIL AI, an intelligent Hindi and English AI assistant.
+Be helpful, accurate and analytical.
+`,
+
+detective: `
+You are KIL, a professional academic detective.
+
+Investigate every question carefully.
+Find hidden patterns in examination papers.
+Compare historical questions.
+Identify repeated concepts.
+Use evidence instead of guessing.
+
+Present findings in a structured report.
+`,
+
+psychologist: `
+You are KIL Dark Intelligence.
+
+You have advanced analytical thinking.
+Study examination patterns, question structures,
+difficulty levels and academic trends.
+
+Think critically.
+Never invent evidence.
+Explain your conclusions clearly.
+`,
+
+pattern: `
+You are KIL Pattern Recognition Engine.
+
+Analyze previous year CG Board Class 10 papers.
+
+Identify:
+1. Repeated questions.
+2. Repeated concepts.
+3. Chapter frequency.
+4. Marks distribution.
+5. Changes in question patterns.
+6. Important topics.
+
+Give evidence for every finding.
+`,
+
+prediction: `
+You are KIL Examination Prediction Engine.
+
+Your task is to analyze CG Board Class 10 annual
+examination papers and estimate probable questions.
+
+Use:
+1. Previous year question papers.
+2. Official syllabus.
+3. Official model papers.
+4. Chapter weightage.
+5. Repeated concepts.
+6. Historical patterns.
+
+For every prediction provide:
+- Subject
+- Chapter
+- Probable question
+- Marks
+- Supporting evidence
+- Confidence level
+
+Never claim that a question is guaranteed.
+Do not invent historical statistics.
+`,
+
+subject: `
+You are KIL Subject Intelligence.
+
+Analyze CG Board Class 10 subjects.
+Explain important chapters, concepts,
+question patterns and chapter-wise priorities.
+
+Ask which subject is being analyzed
+if the user has not specified one.
+`,
+
+modelpaper: `
+You are KIL Model Paper Generator.
+
+Create realistic CG Board Class 10 practice papers.
+
+Respect the supplied syllabus, marks distribution
+and question format.
+
+Include:
+- Section-wise questions
+- Objective questions
+- Short answers
+- Long answers
+- Marks for each question
+
+Clearly label generated papers as practice papers.
+`,
+
+evaluator: `
+You are KIL Answer Evaluation Engine.
+
+Evaluate student answers using the relevant
+textbook concepts and marking criteria.
+
+Provide:
+- Correctness
+- Missing points
+- Conceptual mistakes
+- Suggested improvements
+- Indicative marks
+
+Do not claim official board evaluation.
+`,
+
+history: `
+You are KIL Historical Examination Analyst.
+
+Compare available historical examination papers.
+
+Find:
+- Year-wise question patterns
+- Repeated topics
+- Chapter trends
+- Changes in marks distribution
+- Important concepts
+
+Never fabricate historical data.
+`
+
+};
+
+
+// ==============================
+// MODE SWITCHING
+// ==============================
+
+function setMode(mode,button){
+
+    currentMode = mode;
+
+    document.querySelectorAll(".sidebar button")
+    .forEach(b=>b.classList.remove("active"));
+
+    if(button){
+        button.classList.add("active");
+    }
+
+    const titles = {
+
+        normal:"💬 KIL AI Chat",
+        detective:"🕵️ Detective Investigation",
+        psychologist:"🧠 Dark Intelligence",
+        pattern:"🔍 Pattern Analysis",
+        prediction:"🎯 Question Prediction",
+        subject:"📚 Subject Intelligence",
+        modelpaper:"📝 Model Paper Generator",
+        evaluator:"✍️ Answer Evaluator",
+        history:"📊 Historical Analysis"
+
+    };
+
+    document.getElementById("modeTitle").innerText =
+    titles[mode] || "KIL AI";
+
+}
+
+function quickMode(mode){
+
+    setMode(mode);
+
+    const prompts = {
+
+        detective:"मेरे प्रश्नपत्र का डिटेक्टिव विश्लेषण करो।",
+
+        pattern:"CG Board Class 10 के प्रश्नपत्रों का पैटर्न विश्लेषण करो।",
+
+        prediction:"मेरे लिए संभावित वार्षिक परीक्षा प्रश्न तैयार करो।",
+
+        modelpaper:"CG Board Class 10 का मॉडल पेपर बनाओ।",
+
+        subject:"कक्षा 10 के महत्वपूर्ण अध्यायों का विश्लेषण करो।",
+
+        evaluator:"मेरे उत्तर का मूल्यांकन करो।"
+
+    };
+
+    document.getElementById("userInput").value =
+    prompts[mode] || "";
+
+    document.getElementById("userInput").focus();
+
+}
+
+
+// ==============================
+// CHAT DISPLAY
+// ==============================
+
+function addMessage(text,type){
+
+    const div = document.createElement("div");
+
+    div.className = "message " + type;
+
+    div.textContent = text;
+
+    chatbox.appendChild(div);
+
+    chatbox.scrollTop = chatbox.scrollHeight;
+
+    return div;
+
+}
+
+
+// ==============================
+// SESSION
+// ==============================
 
 let sessionId = localStorage.getItem("kil_session");
 
-if (!sessionId) {
-    sessionId = "kil-" + Date.now();
-    localStorage.setItem("kil_session", sessionId);
+if(!sessionId){
+
+    sessionId = "KIL-" +
+    Date.now() + "-" +
+    Math.random().toString(36).slice(2);
+
+    localStorage.setItem("kil_session",sessionId);
+
 }
 
-// चैट में संदेश दिखाना
-function addMessage(text, type) {
-    const div = document.createElement("div");
-    div.className = "message " + type;
-    div.textContent = String(text);
 
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
-}
+// ==============================
+// SEND MESSAGE
+// ==============================
 
-// सर्वर की स्थिति जाँचना
-async function checkServer() {
-    try {
-        const response = await fetch("/api/health");
+async function sendMessage(){
 
-        if (!response.ok) {
-            throw new Error("Server error");
-        }
+    if(isBusy) return;
 
-        statusText.textContent = "🟢 KIL AI ऑनलाइन है";
+    const input = document.getElementById("userInput");
 
-    } catch (error) {
-        statusText.textContent = "🔴 सर्वर कनेक्शन नहीं है";
-    }
-}
+    const message = input.value.trim();
 
-// KIL की आवाज़ रोकना
-function stopSpeaking() {
-    if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-    }
-}
-
-// KIL से बात करना
-async function sendMessage() {
-
-    const text = input.value.trim();
-
-    if (!text) return;
-
-    addMessage(text, "user");
+    if(!message) return;
 
     input.value = "";
-    sendButton.disabled = true;
 
-    stopSpeaking();
+    addMessage(message,"user");
 
-    statusText.textContent = "KIL जवाब तैयार कर रहा है...";
+    const loading = addMessage(
+        "KIL विश्लेषण कर रहा है...",
+        "bot"
+    );
 
-    try {
+    isBusy = true;
 
-        const response = await fetch("/api/chat", {
-            method: "POST",
+    document.getElementById("status").innerText =
+    "● ANALYZING";
 
-            headers: {
-                "Content-Type": "application/json"
+    try{
+
+        const fullMessage = `
+
+${personalities[currentMode]}
+
+CURRENT MODE: ${currentMode}
+
+UPLOADED DOCUMENT:
+${uploadedDocument || "No document uploaded."}
+
+USER QUESTION:
+${message}
+
+Respond in clear Hindi unless another language is requested.
+Use structured headings and evidence-based analysis.
+
+`;
+
+        const response = await fetch(API_URL,{
+
+            method:"POST",
+
+            headers:{
+                "Content-Type":"application/json"
             },
 
-            body: JSON.stringify({
-                message: text,
-                session_id: sessionId
+            body:JSON.stringify({
+
+                message:fullMessage,
+
+                session_id:sessionId
+
             })
+
         });
 
-        const raw = await response.text();
 
-        let data;
-
-        try {
-            data = JSON.parse(raw);
-        } catch {
-            throw new Error("सर्वर का जवाब पढ़ा नहीं जा सका: " + raw);
-        }
-
-        if (!response.ok) {
-            const detail = data.detail || data.error || raw;
+        if(!response.ok){
 
             throw new Error(
-                typeof detail === "string"
-                    ? detail
-                    : JSON.stringify(detail)
-            );
-        }
-
-        let reply = data.reply;
-
-        if (reply === undefined || reply === null) {
-            reply = data.response || data.answer || data.message;
-        }
-
-        if (reply === undefined || reply === null) {
-            throw new Error("AI का जवाब नहीं मिला: " +
-                JSON.stringify(data));
-        }
-
-        addMessage(reply, "bot");
-
-        if (data.session_id) {
-            sessionId = data.session_id;
-            localStorage.setItem("kil_session", sessionId);
-        }
-
-        // KIL का आवाज़ में जवाब
-        if ("speechSynthesis" in window) {
-
-            stopSpeaking();
-
-            const speech = new SpeechSynthesisUtterance(
-                String(reply)
+                "Server Error: " + response.status
             );
 
-            speech.lang = "hi-IN";
-            speech.rate = 1;
-            speech.pitch = 1;
-
-            window.speechSynthesis.speak(speech);
         }
 
-        statusText.textContent = "🟢 KIL AI ऑनलाइन है";
 
-    } catch (error) {
+        const data = await response.json();
 
-        addMessage("त्रुटि: " + error.message, "bot");
+        const reply =
+            data.reply ||
+            data.response ||
+            data.answer ||
+            data.message ||
+            "AI से उत्तर प्राप्त नहीं हुआ।";
 
-        statusText.textContent = "🔴 जवाब मिलने में समस्या";
+
+        loading.textContent = reply;
+
+        document.getElementById("status").innerText =
+        "● SYSTEM ONLINE";
+
+        speak(reply);
+
     }
 
-    sendButton.disabled = false;
+    catch(error){
+
+        loading.textContent =
+        "KIL Connection Error: " +
+        error.message +
+        "\nकृपया Backend और API की जाँच करें।";
+
+        document.getElementById("status").innerText =
+        "● CONNECTION ERROR";
+
+    }
+
+    finally{
+
+        isBusy = false;
+
+    }
+
 }
 
-// Enter दबाकर संदेश भेजना
-input.addEventListener("keydown", function(event) {
 
-    if (event.key === "Enter") {
+// ==============================
+// ENTER TO SEND
+// ==============================
+
+document.getElementById("userInput")
+.addEventListener("keydown",function(e){
+
+    if(e.key === "Enter" && !e.shiftKey){
+
+        e.preventDefault();
+
         sendMessage();
+
     }
 
 });
 
-// आवाज़ से संदेश लिखना
-function startVoice() {
 
-    const Recognition =
-        window.SpeechRecognition ||
-        window.webkitSpeechRecognition;
+// ==============================
+// PDF AND TXT READER
+// ==============================
 
-    if (!Recognition) {
-        alert("इस ब्राउज़र में Voice Recognition उपलब्ध नहीं है।");
-        return;
+async function readDocument(event){
+
+    const file = event.target.files[0];
+
+    if(!file) return;
+
+    const status = document.getElementById("fileStatus");
+
+    status.innerText = "Document पढ़ा जा रहा है...";
+
+    try{
+
+        let text = "";
+
+        if(file.type === "application/pdf" ||
+           file.name.toLowerCase().endsWith(".pdf")){
+
+            if(!window.pdfjsLib){
+
+                throw new Error("PDF Reader लोड नहीं हुआ।");
+
+            }
+
+            pdfjsLib.GlobalWorkerOptions.workerSrc =
+            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+            const buffer = await file.arrayBuffer();
+
+            const pdf = await pdfjsLib.getDocument({
+                data:buffer
+            }).promise;
+
+            for(let i=1;i<=pdf.numPages;i++){
+
+                const page = await pdf.getPage(i);
+
+                const content = await page.getTextContent();
+
+                const pageText = content.items
+                .map(item=>item.str)
+                .join(" ");
+
+                text += "\n\nPAGE " + i + "\n" + pageText;
+
+            }
+
+        }
+
+        else{
+
+            text = await file.text();
+
+        }
+
+
+        if(!text.trim()){
+
+            throw new Error(
+                "इस फाइल में पढ़ने योग्य टेक्स्ट नहीं मिला।"
+            );
+
+        }
+
+
+        uploadedDocument = text;
+
+        status.innerText =
+        "✓ " + file.name +
+        " सफलतापूर्वक पढ़ लिया गया।";
+
+
+        addMessage(
+            "Document Loaded: " + file.name +
+            "\nअब KIL इस प्रश्नपत्र का विश्लेषण कर सकता है।",
+            "bot"
+        );
+
+
     }
 
-    const recognition = new Recognition();
+    catch(error){
 
-    recognition.lang = "hi-IN";
-    recognition.interimResults = false;
+        status.innerText =
+        "File Error: " + error.message;
 
-    recognition.onstart = function() {
-        statusText.textContent = "🎤 आपकी आवाज़ सुन रहा हूँ...";
-    };
+    }
 
-    recognition.onresult = function(event) {
-
-        const voiceText = event.results[0][0].transcript;
-
-        input.value = voiceText;
-
-        sendMessage();
-    };
-
-    recognition.onerror = function() {
-        statusText.textContent = "आवाज़ पहचानने में समस्या हुई।";
-    };
-
-    recognition.onend = function() {
-        if (!sendButton.disabled) {
-            statusText.textContent = "🟢 KIL AI ऑनलाइन है";
-        }
-    };
-
-    recognition.start();
 }
 
-// पेज खुलने पर सर्वर चेक करना
-checkServer();
 
-</script></body>
+// ==============================
+// VOICE ASSISTANT
+// ==============================
+
+function startVoice(){
+
+    const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+    if(!SpeechRecognition){
+
+        alert(
+            "इस Browser में Speech Recognition उपलब्ध नहीं है। Chrome में प्रयास करें।"
+        );
+
+        return;
+
+    }
+
+    if(recognition){
+
+        recognition.abort();
+
+    }
+
+    recognition = new SpeechRecognition();
+
+    recognition.lang = "hi-IN";
+
+    recognition.continuous = false;
+
+    recognition.interimResults = false;
+
+    recognition.maxAlternatives = 1;
+
+
+    recognition.onstart = function(){
+
+        document.getElementById("voiceStatus")
+        .innerText = "🎙️ सुन रहा हूँ...";
+
+    };
+
+
+    recognition.onresult = function(event){
+
+        const transcript =
+        event.results[0][0].transcript;
+
+        document.getElementById("userInput")
+        .value = transcript;
+
+        document.getElementById("voiceStatus")
+        .innerText = "आवाज प्राप्त हुई।";
+
+        sendMessage();
+
+    };
+
+
+    recognition.onerror = function(event){
+
+        document.getElementById("voiceStatus")
+        .innerText = "Voice Error: " + event.error;
+
+    };
+
+
+    recognition.onend = function(){
+
+        document.getElementById("voiceStatus")
+        .innerText = "Voice Assistant Ready";
+
+    };
+
+
+    recognition.start();
+
+}
+
+
+// ==============================
+// HINDI TEXT TO SPEECH
+// ==============================
+
+function speak(text){
+
+    if(!("speechSynthesis" in window)) return;
+
+    stopSpeaking();
+
+    const cleanText = text
+    .replace(/```[\s\S]*?```/g,"")
+    .replace(/[#*_`]/g,"")
+    .slice(0,10000);
+
+    currentUtterance =
+    new SpeechSynthesisUtterance(cleanText);
+
+    currentUtterance.lang = "hi-IN";
+
+    currentUtterance.rate = 1;
+
+    currentUtterance.pitch = 1;
+
+    currentUtterance.volume = 1;
+
+
+    const voices = speechSynthesis.getVoices();
+
+    const hindiVoice = voices.find(v=>
+        v.lang.toLowerCase().startsWith("hi")
+    );
+
+    if(hindiVoice){
+
+        currentUtterance.voice = hindiVoice;
+
+    }
+
+    speechSynthesis.speak(currentUtterance);
+
+}
+
+
+// ==============================
+// STOP SPEAKING
+// ==============================
+
+function stopSpeaking(){
+
+    if("speechSynthesis" in window){
+
+        speechSynthesis.cancel();
+
+    }
+
+    if(recognition){
+
+        recognition.abort();
+
+        recognition = null;
+
+    }
+
+    document.getElementById("voiceStatus")
+    .innerText = "Voice Stopped";
+
+}
+
+
+// ==============================
+// CLEAR CHAT
+// ==============================
+
+function clearChat(){
+
+    stopSpeaking();
+
+    chatbox.innerHTML = "";
+
+    uploadedDocument = "";
+
+    document.getElementById("pdfFile").value = "";
+
+    document.getElementById("fileStatus").innerText = "";
+
+    addMessage(
+        "KIL तैयार है। अपना अगला प्रश्न पूछें।",
+        "bot"
+    );
+
+}
+
+
+// ==============================
+// INITIALIZATION
+// ==============================
+
+window.addEventListener("load",function(){
+
+    fetch("/api/health")
+    .then(response=>{
+
+        if(!response.ok){
+
+            throw new Error("Health check failed");
+
+        }
+
+        document.getElementById("status")
+        .innerText = "● SYSTEM ONLINE";
+
+    })
+    .catch(()=>{
+
+        document.getElementById("status")
+        .innerText = "● SERVER CHECK";
+
+    });
+
+});
+
+</script>
+
+</body>
 </html>
