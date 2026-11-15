@@ -1,205 +1,163 @@
 import os
-import uuid
 import logging
 import requests
 
-from typing import Optional
+from pathlib import Path
 from threading import Lock
-
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-# ==========================================
+# -------------------------------
 # KIL AI CONFIGURATION
-# ==========================================
+# -------------------------------
 
-app = FastAPI(
-    title="KIL AI",
-    description="Dark Detective Academic Intelligence",
-    version="2.0"
-)
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("KIL-AI")
+APP_NAME = "KIL AI"
+MODEL = "openai/gpt-oss-120b"
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-MODEL = "openai/gpt-oss-120b"
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
 
-sessions = {}
-session_lock = Lock()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("KIL-AI")
 
-# ==========================================
-# KIL SYSTEM PERSONALITY
-# ==========================================
+app = FastAPI(
+    title="KIL AI",
+    description="Academic Intelligence Assistant",
+    version="2.0"
+)
+
+# -------------------------------
+# ACADEMIC AI PERSONALITY
+# -------------------------------
 
 SYSTEM_PROMPT = """
-You are KIL AI, an advanced academic intelligence system.
+तुम KIL AI हो।
 
-IDENTITY:
-Your name is KIL.
+तुम एक बुद्धिमान, गंभीर, तार्किक और पेशेवर Academic Intelligence Assistant हो।
 
-PERSONALITY:
-- Professional Academic Detective
-- Deep Analytical Thinker
-- Strategic Intelligence
-- Pattern Recognition Expert
-- Evidence Based Investigator
-- Critical Reasoning Expert
+तुम्हारा मुख्य उद्देश्य छत्तीसगढ़ बोर्ड (CG Board) कक्षा 10 के विद्यार्थियों की पढ़ाई में सहायता करना है।
 
-LANGUAGE:
-Respond in Hindi by default.
-Understand Hindi and English.
+तुम्हारी जिम्मेदारियाँ:
 
-MAIN MISSION:
-Analyze Chhattisgarh Board (CG Board)
-Class 10 annual examination papers.
+1. गणित, विज्ञान, हिंदी, अंग्रेजी और सामाजिक विज्ञान समझाना।
+2. कठिन विषयों को आसान हिंदी में समझाना।
+3. पुराने प्रश्नपत्रों का विश्लेषण करना।
+4. बार-बार पूछे गए प्रश्नों के पैटर्न पहचानना।
+5. महत्वपूर्ण अध्याय और प्रश्नों की सूची बनाना।
+6. अभ्यास प्रश्न और मॉडल पेपर तैयार करना।
+7. विद्यार्थियों के उत्तर जाँचना और सुधार बताना।
+8. परीक्षा की तैयारी के लिए रणनीति देना।
+9. आवश्यकता पड़ने पर उदाहरण और चरणबद्ध समाधान देना।
 
-YOUR INTELLIGENCE SYSTEMS:
+तुम्हारा व्यवहार:
 
-1. HISTORICAL ANALYSIS
-Analyze previous year question papers.
+- शांत, गंभीर और आत्मविश्वासी रहो।
+- जासूस की तरह तथ्यों और प्रमाणों का विश्लेषण करो।
+- बिना प्रमाण कोई दावा मत करो।
+- विद्यार्थी से हमेशा सम्मानपूर्वक बात करो।
+- सरल और स्पष्ट हिंदी का प्रयोग करो।
+- जरूरत पड़ने पर अंग्रेजी में भी समझाओ।
 
-2. PATTERN RECOGNITION
-Identify repeated questions and concepts.
+महत्वपूर्ण नियम:
 
-3. FREQUENCY ANALYSIS
-Calculate question frequency using
-actual available question paper data.
+- किसी प्रश्न के परीक्षा में आने की 100% गारंटी मत देना।
+- पुराने प्रश्नपत्र उपलब्ध न हों तो यह स्पष्ट बताना।
+- वास्तविक डेटा के बिना नकली विश्लेषण मत करना।
+- अनुमान और प्रमाणित जानकारी में अंतर बताना।
+- विद्यार्थी को स्वयं समझने और अभ्यास करने में मदद करना।
+- छोटे सवालों का सीधा जवाब देना।
+- अनावश्यक बातें और बहुत ज्यादा इमोजी इस्तेमाल मत करना।
 
-4. CHAPTER INTELLIGENCE
-Identify important chapters and topics.
-
-5. DIFFICULTY ANALYSIS
-Classify questions as Easy, Medium and Hard.
-
-6. MARKS ANALYSIS
-Analyze marks distribution.
-
-7. QUESTION PREDICTION
-Estimate probable examination questions
-using historical evidence and official syllabus.
-
-8. MODEL PAPER GENERATOR
-Generate realistic practice papers.
-
-9. ANSWER EVALUATOR
-Evaluate student answers and explain mistakes.
-
-10. DETECTIVE MODE
-Investigate question papers and provide
-evidence-based findings.
-
-PREDICTION RULES:
-
-Never invent historical statistics.
-
-Never guarantee that a predicted question
-will appear in the actual examination.
-
-Clearly explain the evidence behind predictions.
-
-Use confidence levels:
-High, Medium and Low.
-
-If historical papers are unavailable,
-ask the user to upload them.
-
-IMPORTANT:
-Distinguish facts from estimates.
-
-Provide clear headings, tables and explanations.
-
-Never manipulate people.
-Use analytical intelligence only for education.
+तुम्हारा उद्देश्य विद्यार्थी को बेहतर तरीके से पढ़ाना और परीक्षा के लिए तैयार करना है।
 """
 
-# ==========================================
-# REQUEST MODEL
-# ==========================================
+# -------------------------------
+# CHAT MEMORY
+# -------------------------------
+
+chat_sessions = {}
+session_lock = Lock()
+
+MAX_HISTORY = 12
+MAX_MESSAGE_LENGTH = 18000
+
 
 class ChatRequest(BaseModel):
-
-    message: str = Field(
-        ...,
-        min_length=1,
-        max_length=18000
-    )
-
-    session_id: Optional[str] = None
+    message: str
+    session_id: str = "default"
 
 
-# ==========================================
+# -------------------------------
 # HOME PAGE
-# ==========================================
+# -------------------------------
 
 @app.get("/")
-def home():
+async def home():
+    index_file = STATIC_DIR / "index.html"
 
-    file_path = "static/index.html"
+    if not index_file.exists():
+        return {
+            "name": APP_NAME,
+            "status": "online",
+            "message": "KIL AI backend is running."
+        }
 
-    if not os.path.exists(file_path):
-        raise HTTPException(
-            status_code=404,
-            detail="KIL index.html not found"
-        )
-
-    return FileResponse(file_path)
+    return FileResponse(index_file)
 
 
-# ==========================================
+# -------------------------------
 # HEALTH CHECK
-# ==========================================
+# -------------------------------
 
 @app.get("/api/health")
-def health():
-
+async def health():
     return {
         "status": "online",
-        "name": "KIL AI",
-        "model": MODEL,
-        "version": "2.0"
+        "name": APP_NAME,
+        "model": MODEL
     }
 
 
-# ==========================================
+# -------------------------------
 # CHAT API
-# ==========================================
+# -------------------------------
 
 @app.post("/api/chat")
-def chat(data: ChatRequest):
+async def chat(request: ChatRequest):
 
     if not GROQ_API_KEY:
         raise HTTPException(
             status_code=500,
-            detail="GROQ_API_KEY is missing in Render Environment Variables."
+            detail="GROQ_API_KEY server environment में सेट नहीं है।"
         )
 
-    user_message = data.message.strip()
+    user_message = request.message.strip()
 
     if not user_message:
         raise HTTPException(
             status_code=400,
-            detail="Message cannot be empty."
+            detail="कृपया अपना सवाल लिखें।"
         )
 
-    session_id = data.session_id or str(uuid.uuid4())
+    if len(user_message) > MAX_MESSAGE_LENGTH:
+        raise HTTPException(
+            status_code=413,
+            detail="आपका संदेश बहुत बड़ा है। कृपया छोटा संदेश भेजें।"
+        )
 
-    # ======================================
-    # SESSION HISTORY
-    # ======================================
+    session_id = request.session_id.strip() or "default"
 
     with session_lock:
+        if session_id not in chat_sessions:
+            chat_sessions[session_id] = []
 
-        history = sessions.get(session_id, []).copy()
-
-    # ======================================
-    # PREPARE MESSAGES
-    # ======================================
+        history = chat_sessions[session_id].copy()
 
     messages = [
         {
@@ -208,187 +166,125 @@ def chat(data: ChatRequest):
         }
     ]
 
-    messages.extend(history[-10:])
+    messages.extend(history)
 
     messages.append({
         "role": "user",
         "content": user_message
     })
 
-    # ======================================
-    # GROQ REQUEST
-    # ======================================
+    payload = {
+        "model": MODEL,
+        "messages": messages,
+        "temperature": 0.5,
+        "max_tokens": 1800
+    }
 
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json"
     }
 
-    payload = {
-        "model": MODEL,
-        "messages": messages,
-        "temperature": 0.6,
-        "max_completion_tokens": 2000
-    }
-
     try:
-
-        logger.info("KIL sending request to Groq")
-
         response = requests.post(
             GROQ_URL,
             headers=headers,
             json=payload,
-            timeout=(15, 90)
+            timeout=90
         )
-
-        logger.info(
-            "Groq status: %s",
-            response.status_code
-        )
-
-        # ==================================
-        # GROQ ERROR HANDLING
-        # ==================================
 
         if response.status_code != 200:
-
-            try:
-                error_data = response.json()
-
-                error_message = error_data.get(
-                    "error", {}
-                ).get(
-                    "message",
-                    str(error_data)
-                )
-
-            except ValueError:
-
-                error_message = response.text[:1000]
-
             logger.error(
                 "Groq API error: %s",
-                error_message
+                response.text[:1000]
             )
 
             raise HTTPException(
                 status_code=502,
-                detail=f"Groq API Error: {error_message}"
+                detail="AI सेवा से जवाब नहीं मिला। कुछ समय बाद दोबारा प्रयास करें।"
             )
-
-        # ==================================
-        # READ AI RESPONSE
-        # ==================================
 
         result = response.json()
 
-        choices = result.get("choices", [])
+        answer = result["choices"][0]["message"]["content"]
 
-        if not choices:
+        if not answer:
+            raise ValueError("Empty AI response")
 
-            raise HTTPException(
-                status_code=502,
-                detail="Groq returned no response choices."
-            )
-
-        reply = choices[0].get(
-            "message", {}
-        ).get("content")
-
-        if not reply:
-
-            raise HTTPException(
-                status_code=502,
-                detail="AI returned an empty response."
-            )
-
-        # ==================================
-        # SAVE HISTORY
-        # ==================================
-
-        updated_history = history + [
-            {
+        # Save conversation history
+        with session_lock:
+            chat_sessions[session_id].append({
                 "role": "user",
                 "content": user_message
-            },
-            {
+            })
+
+            chat_sessions[session_id].append({
                 "role": "assistant",
-                "content": reply
-            }
-        ]
+                "content": answer
+            })
 
-        with session_lock:
-
-            sessions[session_id] = updated_history[-10:]
-
-        # ==================================
-        # SUCCESS RESPONSE
-        # ==================================
+            chat_sessions[session_id] = (
+                chat_sessions[session_id][-MAX_HISTORY:]
+            )
 
         return {
-            "status": "success",
-            "reply": reply,
+            "reply": answer,
             "session_id": session_id,
+            "status": "success",
             "model": MODEL
         }
 
-    except requests.exceptions.Timeout:
+    except HTTPException:
+        raise
 
-        logger.exception("Groq timeout")
+    except requests.exceptions.Timeout:
+        logger.exception("Groq API timeout")
 
         raise HTTPException(
             status_code=504,
-            detail="Groq server timeout. Please try again."
+            detail="AI जवाब देने में अधिक समय ले रहा है। दोबारा प्रयास करें।"
         )
 
-    except requests.exceptions.RequestException as error:
-
+    except requests.exceptions.RequestException:
         logger.exception("Groq connection error")
 
         raise HTTPException(
             status_code=502,
-            detail=f"Groq connection error: {str(error)}"
+            detail="AI सर्वर से कनेक्शन नहीं हो पाया।"
         )
 
-    except HTTPException:
-
-        raise
-
-    except Exception as error:
-
-        logger.exception("KIL internal error")
+    except Exception:
+        logger.exception("Unexpected chat error")
 
         raise HTTPException(
             status_code=500,
-            detail=f"KIL internal error: {str(error)}"
+            detail="KIL AI में तकनीकी समस्या आई है।"
         )
 
 
-# ==========================================
+# -------------------------------
 # STATIC FILES
-# ==========================================
+# -------------------------------
 
-if os.path.isdir("static"):
-
+if STATIC_DIR.exists():
     app.mount(
         "/static",
-        StaticFiles(directory="static"),
+        StaticFiles(directory=str(STATIC_DIR)),
         name="static"
     )
 
 
-# ==========================================
-# STARTUP
-# ==========================================
+# -------------------------------
+# SERVER START
+# -------------------------------
 
-@app.on_event("startup")
-def startup_event():
+if __name__ == "__main__":
+    import uvicorn
 
-    logger.info("KIL AI started successfully")
+    port = int(os.environ.get("PORT", 8000))
 
-    logger.info("Model: %s", MODEL)
-
-    if not GROQ_API_KEY:
-
-        logger.warning("GROQ_API_KEY is missing!")
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=port
+    )
