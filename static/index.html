@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="hi">
 <head>
@@ -9,7 +10,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
 <style>
-
 *{
     margin:0;
     padding:0;
@@ -102,6 +102,7 @@ header{
     border-radius:10px;
     padding:16px;
     cursor:pointer;
+    transition:0.2s;
 }
 
 .card:hover{
@@ -262,27 +263,20 @@ footer{
     .logo{
         font-size:20px;
     }
-
 }
-
 </style>
 </head>
 
 <body>
 
 <header>
-
-<div class="logo">KIL-AI</div>
-
-<div class="status" id="status">
-● SYSTEM ONLINE
-</div>
-
+    <div class="logo">KIL-AI</div>
+    <div class="status" id="status">
+        ● SYSTEM ONLINE
+    </div>
 </header>
 
 <div class="container">
-
-<!-- SIDEBAR -->
 
 <aside class="sidebar">
 
@@ -332,9 +326,6 @@ footer{
 
 </aside>
 
-
-<!-- MAIN CONTENT -->
-
 <main class="main">
 
 <h1 class="title">Dark Intelligence System</h1>
@@ -342,9 +333,6 @@ footer{
 <p class="subtitle">
 KIL Academic Detective | CG Board Class 10
 </p>
-
-
-<!-- DASHBOARD -->
 
 <div class="dashboard">
 
@@ -380,9 +368,6 @@ KIL Academic Detective | CG Board Class 10
 
 </div>
 
-
-<!-- PDF SCANNER -->
-
 <div class="panel">
 
 <h3>📄 Question Paper Scanner</h3>
@@ -404,9 +389,6 @@ PDF या TXT फॉर्मेट में अपलोड करें।
 
 </div>
 
-
-<!-- CHAT -->
-
 <div class="panel">
 
 <h3 id="modeTitle">💬 KIL AI Chat</h3>
@@ -426,7 +408,6 @@ PDF या TXT फॉर्मेट में अपलोड करें।
 </div>
 
 </div>
-
 
 <div class="input-area">
 
@@ -456,38 +437,38 @@ Voice Assistant Ready
 </div>
 
 </main>
-
 </div>
 
 <footer>
 KIL AI | Dark Detective Academic Intelligence System
 </footer>
 
-
 <script>
 
-// ==============================
+// ======================================
 // CONFIGURATION
-// ==============================
+// ======================================
 
 const API_URL = "/api/chat";
 
 let currentMode = "normal";
-
 let uploadedDocument = "";
-
 let isBusy = false;
-
 let recognition = null;
 
 let currentUtterance = null;
+let voiceQueue = [];
+let voiceRunId = 0;
+let voicePlaying = false;
+
+let voiceList = [];
 
 const chatbox = document.getElementById("chatbox");
 
 
-// ==============================
+// ======================================
 // AI PERSONALITY
-// ==============================
+// ======================================
 
 const personalities = {
 
@@ -625,16 +606,16 @@ Never fabricate historical data.
 };
 
 
-// ==============================
+// ======================================
 // MODE SWITCHING
-// ==============================
+// ======================================
 
-function setMode(mode,button){
+function setMode(mode, button){
 
     currentMode = mode;
 
     document.querySelectorAll(".sidebar button")
-    .forEach(b=>b.classList.remove("active"));
+    .forEach(b => b.classList.remove("active"));
 
     if(button){
         button.classList.add("active");
@@ -658,6 +639,7 @@ function setMode(mode,button){
     titles[mode] || "KIL AI";
 
 }
+
 
 function quickMode(mode){
 
@@ -687,11 +669,11 @@ function quickMode(mode){
 }
 
 
-// ==============================
+// ======================================
 // CHAT DISPLAY
-// ==============================
+// ======================================
 
-function addMessage(text,type){
+function addMessage(text, type){
 
     const div = document.createElement("div");
 
@@ -708,9 +690,9 @@ function addMessage(text,type){
 }
 
 
-// ==============================
+// ======================================
 // SESSION
-// ==============================
+// ======================================
 
 let sessionId = localStorage.getItem("kil_session");
 
@@ -725,9 +707,9 @@ if(!sessionId){
 }
 
 
-// ==============================
+// ======================================
 // SEND MESSAGE
-// ==============================
+// ======================================
 
 async function sendMessage(){
 
@@ -783,13 +765,11 @@ Use structured headings and evidence-based analysis.
             body:JSON.stringify({
 
                 message:fullMessage,
-
                 session_id:sessionId
 
             })
 
         });
-
 
         if(!response.ok){
 
@@ -798,7 +778,6 @@ Use structured headings and evidence-based analysis.
             );
 
         }
-
 
         const data = await response.json();
 
@@ -809,12 +788,12 @@ Use structured headings and evidence-based analysis.
             data.message ||
             "AI से उत्तर प्राप्त नहीं हुआ।";
 
-
         loading.textContent = reply;
 
         document.getElementById("status").innerText =
         "● SYSTEM ONLINE";
 
+        // Speak AI response
         speak(reply);
 
     }
@@ -840,9 +819,9 @@ Use structured headings and evidence-based analysis.
 }
 
 
-// ==============================
+// ======================================
 // ENTER TO SEND
-// ==============================
+// ======================================
 
 document.getElementById("userInput")
 .addEventListener("keydown",function(e){
@@ -858,9 +837,9 @@ document.getElementById("userInput")
 });
 
 
-// ==============================
+// ======================================
 // PDF AND TXT READER
-// ==============================
+// ======================================
 
 async function readDocument(event){
 
@@ -901,7 +880,7 @@ async function readDocument(event){
                 const content = await page.getTextContent();
 
                 const pageText = content.items
-                .map(item=>item.str)
+                .map(item => item.str)
                 .join(" ");
 
                 text += "\n\nPAGE " + i + "\n" + pageText;
@@ -916,7 +895,6 @@ async function readDocument(event){
 
         }
 
-
         if(!text.trim()){
 
             throw new Error(
@@ -925,20 +903,17 @@ async function readDocument(event){
 
         }
 
-
         uploadedDocument = text;
 
         status.innerText =
         "✓ " + file.name +
         " सफलतापूर्वक पढ़ लिया गया।";
 
-
         addMessage(
             "Document Loaded: " + file.name +
             "\nअब KIL इस प्रश्नपत्र का विश्लेषण कर सकता है।",
             "bot"
         );
-
 
     }
 
@@ -952,9 +927,9 @@ async function readDocument(event){
 }
 
 
-// ==============================
-// VOICE ASSISTANT
-// ==============================
+// ======================================
+// VOICE INPUT - SPEECH RECOGNITION
+// ======================================
 
 function startVoice(){
 
@@ -975,6 +950,7 @@ function startVoice(){
     if(recognition){
 
         recognition.abort();
+        recognition = null;
 
     }
 
@@ -988,14 +964,12 @@ function startVoice(){
 
     recognition.maxAlternatives = 1;
 
-
     recognition.onstart = function(){
 
         document.getElementById("voiceStatus")
         .innerText = "🎙️ सुन रहा हूँ...";
 
     };
-
 
     recognition.onresult = function(event){
 
@@ -1012,7 +986,6 @@ function startVoice(){
 
     };
 
-
     recognition.onerror = function(event){
 
         document.getElementById("voiceStatus")
@@ -1020,69 +993,391 @@ function startVoice(){
 
     };
 
-
     recognition.onend = function(){
+
+        recognition = null;
+
+        if(!voicePlaying){
+
+            document.getElementById("voiceStatus")
+            .innerText = "Voice Assistant Ready";
+
+        }
+
+    };
+
+    try{
+
+        recognition.start();
+
+    }
+
+    catch(error){
+
+        document.getElementById("voiceStatus")
+        .innerText = "Voice Start Error: " + error.message;
+
+    }
+
+}
+
+
+// ======================================
+// LOAD AVAILABLE VOICES
+// ======================================
+
+function loadKILVoices(){
+
+    if(!("speechSynthesis" in window)) return;
+
+    voiceList = speechSynthesis.getVoices();
+
+}
+
+if("speechSynthesis" in window){
+
+    loadKILVoices();
+
+    speechSynthesis.onvoiceschanged = loadKILVoices;
+
+}
+
+
+// ======================================
+// CLEAN AI TEXT BEFORE SPEAKING
+// ======================================
+
+function cleanKILText(text){
+
+    let clean = String(text || "");
+
+    // Remove code blocks
+    clean = clean.replace(/```[\s\S]*?```/g," ");
+
+    // Remove inline code formatting
+    clean = clean.replace(/`([^`]*)`/g,"$1");
+
+    // Remove Markdown links but keep their text
+    clean = clean.replace(
+        /\[([^\]]+)\]\([^)]+\)/g,
+        "$1"
+    );
+
+    // Remove URLs
+    clean = clean.replace(/https?:\/\/\S+/gi," ");
+
+    // Remove Markdown headings
+    clean = clean.replace(/^#{1,6}\s*/gm,"");
+
+    // Remove Markdown bold and italic
+    clean = clean.replace(/[*_~]/g,"");
+
+    // Remove horizontal separators
+    clean = clean.replace(/^\s*[-_=]{3,}\s*$/gm,"");
+
+    // Remove bullet symbols at line beginnings
+    clean = clean.replace(
+        /^[\s]*[-•●▪◦►]+\s*/gm,
+        ""
+    );
+
+    // Remove numbering used as list markers
+    clean = clean.replace(
+        /^\s*\d+[.)]\s*/gm,
+        ""
+    );
+
+    // Remove table separators
+    clean = clean.replace(/\|/g," ");
+
+    // Remove emoji and pictographs
+    try{
+
+        clean = clean.replace(
+            /[\p{Extended_Pictographic}\p{Emoji_Component}]/gu,
+            " "
+        );
+
+    }
+
+    catch(error){
+
+        clean = clean.replace(
+            /[\u{1F300}-\u{1FAFF}]/gu,
+            " "
+        );
+
+    }
+
+    // Remove decorative symbols
+    clean = clean.replace(
+        /[★☆✓✔✗✘⚡🔥🎯📚🔍🕵️💬🎙️🧠🚀]/gu,
+        " "
+    );
+
+    // Remove HTML tags
+    clean = clean.replace(/<[^>]*>/g," ");
+
+    // Remove unnecessary special characters
+    clean = clean.replace(/[|{}[\]<>#@$^=\\]/g," ");
+
+    // Clean repeated punctuation
+    clean = clean.replace(/([!?.,])\1+/g,"$1");
+
+    // Normalize spaces
+    clean = clean.replace(/[ \t]+/g," ");
+
+    // Normalize multiple line breaks
+    clean = clean.replace(/\n{2,}/g,". ");
+
+    // Remove empty lines
+    clean = clean.replace(/^\s+|\s+$/gm,"");
+
+    return clean.trim();
+
+}
+
+
+// ======================================
+// SPLIT LONG TEXT INTO SPEECH CHUNKS
+// ======================================
+
+function splitKILText(text){
+
+    const sentences = text.match(
+        /[^.!?।]+[.!?।]?/g
+    ) || [text];
+
+    const chunks = [];
+
+    sentences.forEach(sentence => {
+
+        sentence = sentence.trim();
+
+        if(!sentence) return;
+
+        while(sentence.length > 220){
+
+            let cut = sentence.lastIndexOf(" ",220);
+
+            if(cut < 80){
+                cut = 220;
+            }
+
+            chunks.push(sentence.slice(0,cut).trim());
+
+            sentence = sentence.slice(cut).trim();
+
+        }
+
+        if(sentence){
+
+            chunks.push(sentence);
+
+        }
+
+    });
+
+    return chunks;
+
+}
+
+
+// ======================================
+// SELECT DETECTIVE VOICE
+// ======================================
+
+function getKILVoice(){
+
+    const voices = speechSynthesis.getVoices();
+
+    const hindiVoices = voices.filter(v =>
+        v.lang &&
+        v.lang.toLowerCase().startsWith("hi")
+    );
+
+    // Prefer explicitly identified male Hindi voices
+    const maleVoice = hindiVoices.find(v =>
+        /male|man|hemant|madhur/i.test(v.name)
+    );
+
+    if(maleVoice){
+
+        return maleVoice;
+
+    }
+
+    // Use another Hindi voice if no male label exists
+    if(hindiVoices.length > 0){
+
+        return hindiVoices[0];
+
+    }
+
+    return null;
+
+}
+
+
+// ======================================
+// HARD DETECTIVE VOICE ENGINE
+// ======================================
+
+function speak(text){
+
+    if(!("speechSynthesis" in window)){
+
+        document.getElementById("voiceStatus")
+        .innerText = "Voice Engine उपलब्ध नहीं है।";
+
+        return;
+
+    }
+
+    // Cancel previous speech
+    speechSynthesis.cancel();
+
+    voiceRunId++;
+
+    const thisRun = voiceRunId;
+
+    voiceQueue = [];
+
+    voicePlaying = false;
+
+    const cleanText = cleanKILText(text);
+
+    if(!cleanText){
+
+        return;
+
+    }
+
+    voiceQueue = splitKILText(cleanText);
+
+    if(!voiceQueue.length){
+
+        return;
+
+    }
+
+    voicePlaying = true;
+
+    document.getElementById("voiceStatus")
+    .innerText = "KIL Detective Voice Active";
+
+    // Speak next chunk only after previous chunk ends
+    speakNextChunk(thisRun);
+
+}
+
+
+// ======================================
+// SPEAK NEXT CHUNK
+// ======================================
+
+function speakNextChunk(runId){
+
+    if(runId !== voiceRunId) return;
+
+    if(!voiceQueue.length){
+
+        voicePlaying = false;
+
+        currentUtterance = null;
 
         document.getElementById("voiceStatus")
         .innerText = "Voice Assistant Ready";
 
-    };
-
-
-    recognition.start();
-
-}
-
-
-// ==============================
-// HINDI TEXT TO SPEECH
-// ==============================
-
-function speak(text){
-
-    if(!("speechSynthesis" in window)) return;
-
-    stopSpeaking();
-
-    const cleanText = text
-    .replace(/```[\s\S]*?```/g,"")
-    .replace(/[#*_`]/g,"")
-    .slice(0,10000);
-
-    currentUtterance =
-    new SpeechSynthesisUtterance(cleanText);
-
-    currentUtterance.lang = "hi-IN";
-
-    currentUtterance.rate = 1;
-
-    currentUtterance.pitch = 1;
-
-    currentUtterance.volume = 1;
-
-
-    const voices = speechSynthesis.getVoices();
-
-    const hindiVoice = voices.find(v=>
-        v.lang.toLowerCase().startsWith("hi")
-    );
-
-    if(hindiVoice){
-
-        currentUtterance.voice = hindiVoice;
+        return;
 
     }
 
-    speechSynthesis.speak(currentUtterance);
+    const chunk = voiceQueue.shift();
+
+    const utterance =
+    new SpeechSynthesisUtterance(chunk);
+
+    currentUtterance = utterance;
+
+    utterance.lang = "hi-IN";
+
+    // Hard and serious detective style
+    utterance.rate = 0.88;
+
+    utterance.pitch = 0.72;
+
+    utterance.volume = 1;
+
+    const selectedVoice = getKILVoice();
+
+    if(selectedVoice){
+
+        utterance.voice = selectedVoice;
+
+        utterance.lang = selectedVoice.lang;
+
+    }
+
+    utterance.onstart = function(){
+
+        if(runId !== voiceRunId) return;
+
+        document.getElementById("voiceStatus")
+        .innerText = "KIL Detective Speaking...";
+
+    };
+
+    utterance.onend = function(){
+
+        if(runId !== voiceRunId) return;
+
+        currentUtterance = null;
+
+        // Continue without restarting the whole response
+        speakNextChunk(runId);
+
+    };
+
+    utterance.onerror = function(event){
+
+        if(runId !== voiceRunId) return;
+
+        if(event.error === "canceled" ||
+           event.error === "interrupted"){
+
+            return;
+
+        }
+
+        console.error("KIL Voice Error:",event.error);
+
+        // Try the next sentence if one fails
+        currentUtterance = null;
+
+        speakNextChunk(runId);
+
+    };
+
+    speechSynthesis.speak(utterance);
 
 }
 
 
-// ==============================
+// ======================================
 // STOP SPEAKING
-// ==============================
+// ======================================
 
 function stopSpeaking(){
+
+    // Invalidate all pending speech callbacks
+    voiceRunId++;
+
+    voiceQueue = [];
+
+    voicePlaying = false;
+
+    currentUtterance = null;
 
     if("speechSynthesis" in window){
 
@@ -1104,9 +1399,9 @@ function stopSpeaking(){
 }
 
 
-// ==============================
+// ======================================
 // CLEAR CHAT
-// ==============================
+// ======================================
 
 function clearChat(){
 
@@ -1128,14 +1423,17 @@ function clearChat(){
 }
 
 
-// ==============================
+// ======================================
 // INITIALIZATION
-// ==============================
+// ======================================
 
 window.addEventListener("load",function(){
 
+    loadKILVoices();
+
     fetch("/api/health")
-    .then(response=>{
+
+    .then(response => {
 
         if(!response.ok){
 
@@ -1147,7 +1445,8 @@ window.addEventListener("load",function(){
         .innerText = "● SYSTEM ONLINE";
 
     })
-    .catch(()=>{
+
+    .catch(() => {
 
         document.getElementById("status")
         .innerText = "● SERVER CHECK";
