@@ -1,176 +1,41 @@
-
 import os
-import uuid
 import requests
-import wikipediaapi
+import uuid
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-# =========================================
-# KIL AI - ONLINE DETECTIVE AI SERVER
-# =========================================
+app = FastAPI(title="KIL AI")
 
-API_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL = "llama-3.3-70b-versatile"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-app = FastAPI(
-    title="KIL AI",
-    description="Advanced Detective Intelligence",
-    version="1.0"
-)
+MODEL = "openai/gpt-oss-120b"
 
-# Wikipedia Hindi
-wiki = wikipediaapi.Wikipedia(
-    user_agent="KIL_AI/1.0 (contact: admin@example.com)",
-    language="hi"
-)
-
-SYSTEM_PROMPT = """
-You are KIL 🎭, an advanced AI detective.
-
-PERSONALITY:
-- Extremely intelligent.
-- Calm and observant.
-- Logical and analytical.
-- Strategic and detail-oriented.
-- Confident and professional.
-
-COMMUNICATION:
-- Speak naturally in Hindi.
-- Give intelligent and detailed answers.
-- Use detective emojis when appropriate.
-- Follow the user's instructions when safe.
-"""
-
-# Temporary chat memory
 sessions = {}
 
+SYSTEM_PROMPT = """
+You are KIL AI, an intelligent and helpful AI assistant.
+You can communicate in Hindi and English.
+Always give clear, useful and accurate answers.
+Be polite, friendly and concise.
+Your name is KIL AI.
+"""
 
 class ChatRequest(BaseModel):
     message: str
-    session_id: str | None = None
+    session_id: str = None
 
-
-def search_wikipedia(query):
-
-    try:
-        page = wiki.page(query)
-
-        if page.exists():
-            return page.summary[:2000]
-
-        return "Wikipedia पर इस विषय की जानकारी नहीं मिली।"
-
-    except Exception as error:
-        return f"Wikipedia Error: {error}"
-
-
-def kil_ai(user_text, session_id):
-
-    if not API_KEY:
-        raise HTTPException(
-            status_code=500,
-            detail="GROQ_API_KEY Environment Variable missing."
-        )
-
-    if session_id not in sessions:
-        sessions[session_id] = [
-            {
-                "role": "system",
-                "content": SYSTEM_PROMPT
-            }
-        ]
-
-    messages = sessions[session_id]
-
-    # Wikipedia command
-    if user_text.lower().startswith("wiki:"):
-
-        query = user_text[5:].strip()
-
-        if query:
-            wiki_info = search_wikipedia(query)
-
-            user_text = (
-                "इस Wikipedia जानकारी का विश्लेषण करके "
-                "हिंदी में उत्तर दो:\n" + wiki_info
-            )
-
-    messages.append({
-        "role": "user",
-        "content": user_text
-    })
-
-    # Keep recent conversation history
-    messages = [messages[0]] + messages[-12:]
-
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    data = {
-        "model": MODEL,
-        "messages": messages,
-        "temperature": 0.7,
-        "max_tokens": 1500
-    }
-
-    try:
-
-        response = requests.post(
-            API_URL,
-            headers=headers,
-            json=data,
-            timeout=60
-        )
-
-        response.raise_for_status()
-
-        result = response.json()
-
-        answer = result["choices"][0]["message"]["content"]
-
-        messages.append({
-            "role": "assistant",
-            "content": answer
-        })
-
-        sessions[session_id] = messages
-
-        return answer
-
-    except requests.exceptions.RequestException:
-        raise HTTPException(
-            status_code=502,
-            detail="Groq AI connection failed."
-        )
-
-    except (KeyError, IndexError, ValueError):
-        raise HTTPException(
-            status_code=502,
-            detail="Invalid AI response."
-        )
-
-
-# =========================================
-# API ROUTES
-# =========================================
 
 @app.get("/")
 def home():
-
     return FileResponse("static/index.html")
 
 
 @app.get("/api/health")
 def health():
-
     return {
         "status": "online",
         "name": "KIL AI",
@@ -181,36 +46,103 @@ def health():
 @app.post("/api/chat")
 def chat(request: ChatRequest):
 
-    user_text = request.message.strip()
-
-    if not user_text:
+    if not GROQ_API_KEY:
         raise HTTPException(
-            status_code=400,
-            detail="Message cannot be empty."
+            status_code=500,
+            detail="GROQ_API_KEY Render par set nahi hai."
         )
 
-    if len(user_text) > 10000:
+    user_message = request.message.strip()
+
+    if not user_message:
         raise HTTPException(
             status_code=400,
-            detail="Message is too long."
+            detail="Message khali hai."
         )
 
     session_id = request.session_id or str(uuid.uuid4())
 
-    answer = kil_ai(user_text, session_id)
+    if session_id not in sessions:
+        sessions[session_id] = []
 
-    return {
-        "status": "success",
-        "session_id": session_id,
-        "answer": answer
+    history = sessions[session_id]
+
+    history.append({
+        "role": "user",
+        "content": user_message
+    })
+
+    messages = [
+        {
+            "role": "system",
+            "content": SYSTEM_PROMPT
+        }
+    ] + history[-12:]
+
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
     }
 
+    payload = {
+        "model": MODEL,
+        "messages": messages,
+        "temperature": 0.7,
+        "max_tokens": 1500
+    }
 
-# Static files
-if os.path.isdir("static"):
+    try:
+        response = requests.post(
+            GROQ_URL,
+            headers=headers,
+            json=payload,
+            timeout=60
+        )
 
-    app.mount(
-        "/static",
-        StaticFiles(directory="static"),
-        name="static"
-)
+        if response.status_code != 200:
+            try:
+                error_data = response.json()
+                error_message = error_data.get(
+                    "error", {}
+                ).get("message", "Groq API error")
+            except Exception:
+                error_message = response.text[:500]
+
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=error_message
+            )
+
+        result = response.json()
+
+        reply = result["choices"][0]["message"]["content"]
+
+        history.append({
+            "role": "assistant",
+            "content": reply
+        })
+
+        sessions[session_id] = history[-12:]
+
+        return {
+            "reply": reply,
+            "session_id": session_id,
+            "model": MODEL
+        }
+
+    except requests.exceptions.Timeout:
+        raise HTTPException(
+            status_code=504,
+            detail="Groq server ne samay par jawab nahi diya."
+        )
+
+    except requests.exceptions.RequestException:
+        raise HTTPException(
+            status_code=502,
+            detail="Groq AI connection failed."
+        )
+
+
+@app.get("/favicon.ico")
+def favicon():
+    raise HTTPException(status_code=404, detail="Not found")
